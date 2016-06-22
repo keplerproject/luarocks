@@ -12,10 +12,10 @@ local util = require("luarocks.util")
 local path = require("luarocks.path")
 
 local socket_ok, zip_ok, unzip_ok, lfs_ok, md5_ok, posix_ok, _
-local http, ftp, lrzip, luazip, lfs, md5, posix
+local socket, ftp, lrzip, luazip, lfs, md5, posix
 
 if cfg.fs_use_modules then
-   socket_ok, http = pcall(require, "socket.http")
+   socket_ok, socket = pcall(require, "socket")
    _, ftp = pcall(require, "socket.ftp")
    zip_ok, lrzip = pcall(require, "luarocks.tools.zip")
    unzip_ok, luazip = pcall(require, "zip"); _G.zip = nil
@@ -544,15 +544,48 @@ end
 if socket_ok then
 
 local ltn12 = require("ltn12")
+local http = require("socket.http")
 local luasec_ok, https = pcall(require, "ssl.https")
 
-local redirect_protocols = {
-   http = http,
-   https = luasec_ok and https,
-}
+-- Patch ltn12 source used by LuaSocket to get fixed length
+-- request body to expose the length.
+local old_source_by_length = socket.sourcet["by-length"]
+socket.sourcet["by-length"] = function(sock, length)
+   local source = old_source_by_length(sock, length)
+   source.length = length
+   return source
+end
 
-local function request(url, method, http, loop_control)
-   local result = {}
+-- If downloading a file takes too long,
+-- start displaying progress line.
+local progress_seconds_threshold = 1.5
+
+local function bytes_to_string(bytes)
+   if bytes >= 1024 * 1000 then
+      return ("%.2f MiB"):format(bytes / (1024 * 1024))
+   else
+      return ("%.2f KiB"):format(bytes / 1024)
+   end
+end
+
+-- Perform HTTP(S) request.
+-- @param url string: URL starting with "http:" or "https:".
+-- @param method string: HTTP method.
+-- @param context table: optional state table shared between requests
+-- in a single redirection chain.
+-- @return (table, number, table) or (nil, string, true?):
+-- parts of response body, status code and headers on success,
+-- nil, error message and HTTPS error flag on failure.
+local function request(url, method, context)
+   local transport
+   if util.starts_with(url, "http:") then
+      transport = http
+   elseif util.starts_with(url, "https:") and luasec_ok and not cfg.https_proxy then
+      -- skip LuaSec when proxy is enabled since it is not supported
+      transport = https
+   else
+      return nil, "Unsupported protocol", util.starts_with(url, "https")
+   end
    
    local proxy = cfg.http_proxy
    if type(proxy) ~= "string" then proxy = nil end
@@ -560,70 +593,119 @@ local function request(url, method, http, loop_control)
    if proxy and not proxy:find("://") then
       proxy = "http://" .. proxy
    end
-   
-   if cfg.show_downloads then
-      io.write(method.." "..url.." ...\n")
-   end
-   local dots = 0
+
    if cfg.connection_timeout and cfg.connection_timeout > 0 then
-      http.TIMEOUT = cfg.connection_timeout
+      transport.TIMEOUT = cfg.connection_timeout
    end
-   local res, status, headers, err = http.request {
+
+   local result = {}
+   local currently_downloaded = 0
+   local start_seconds = socket.gettime()
+   local speed = 0
+
+   context = context or {
+      original_url = url,
+      redirecting_urls = {},
+      first_start_seconds = start_seconds
+   }
+
+   local res, status, headers, status_line = transport.request({
       url = url,
       proxy = proxy,
       method = method,
       redirect = false,
       sink = ltn12.sink.table(result),
-      step = cfg.show_downloads and function(...)
-         io.write(".")
-         io.flush()
-         dots = dots + 1
-         if dots == 70 then
-            io.write("\n")
-            dots = 0
+      step = function(source, sink)
+         local chunk, source_err = source()
+         local ret, sink_err = sink(chunk, source_err)
+
+         if not chunk or not ret then
+            return nil, source_err or sink_err
          end
-         return ltn12.pump.step(...)
+
+         currently_downloaded = currently_downloaded + #chunk
+         local current_seconds = socket.gettime()
+         speed = currently_downloaded / (current_seconds - start_seconds)
+
+         local enable_progress_line
+         if not context.progress_line then
+            if current_seconds - context.first_start_seconds > progress_seconds_threshold then
+               util.printerr("Downloading " .. context.original_url)
+               enable_progress_line = true
+            end
+         end
+
+         if context.progress_line or enable_progress_line then
+            local label = bytes_to_string(currently_downloaded)
+
+            if source.length then
+               label = label .. (" (%d%%)"):format(
+                  math.floor(currently_downloaded / source.length * 100))
+            end
+
+            label = label .. " | " .. bytes_to_string(speed) .. "/s"
+
+            if context.progress_line then
+               io.stderr:write("\r" .. (" "):rep(#context.progress_line))
+            end
+
+            context.progress_line = "  Got " .. label
+            io.stderr:write("\r" .. context.progress_line)
+            io.stderr:flush()
+         end
+
+         return 1
       end,
       headers = {
          ["user-agent"] = cfg.user_agent.." via LuaSocket"
       },
-   }
-   if cfg.show_downloads then
-      io.write("\n")
-   end
+   })
+
+   local err
+
    if not res then
-      return nil, status
+      err = status
    elseif status == 301 or status == 302 then
       local location = headers.location
-      if location then
-         local protocol, rest = dir.split_url(location)
-         if redirect_protocols[protocol] then
-            if not loop_control then
-               loop_control = {}
-            elseif loop_control[location] then
-               return nil, "Redirection loop -- broken URL?"
-            end
-            loop_control[url] = true
-            return request(location, method, redirect_protocols[protocol], loop_control)
+      if not location then
+         err = status_line
+      else
+         context.redirecting_urls[url] = true
+         if context.redirecting_urls[location] then
+            err = "Redirection loop -- broken URL?"
          else
-            return nil, "URL redirected to unsupported protocol - install luasec to get HTTPS support.", "https"
+            return request(location, method, context)
          end
       end
-      return nil, err
    elseif status ~= 200 then
+      err = status_line
+   end
+
+   if context.progress_line then
+      io.stderr:write("\n")
+   end
+
+   if err then
       return nil, err
    else
-      return result, status, headers, err
+      return result, status, headers
    end
 end
 
-local function http_request(url, http, cached)
-   if cached then
-      local tsfd = io.open(cached..".timestamp", "r")
+-- Download a file from URL using HTTP(S).
+-- @param url string: URL starting with "http:" or "https:".
+-- @param timestamp_file string: optional filename of timestamp,
+-- used for caching and updated on cache miss.
+-- @return string, true or (nil, string, true?): true on cache hit,
+-- file contents on successful download,
+-- nil, error message and HTTPS error flag on failure.
+local function http_download(url, timestamp_file)
+   if timestamp_file then
+      local tsfd = io.open(timestamp_file, "r")
       if tsfd then
          local timestamp = tsfd:read("*a")
          tsfd:close()
-         local result, status, headers, err = request(url, "HEAD", http)
+         local result, status, headers = request(url, "HEAD")
          if status == 200 and headers["last-modified"] == timestamp then
             return true
          end
@@ -632,10 +714,10 @@ local function http_request(url, http, cached)
          end
       end
    end
-   local result, status, headers, err = request(url, "GET", http)
+   local result, status, headers = request(url, "GET")
    if result then
-      if cached and headers["last-modified"] then
-         local tsfd = io.open(cached..".timestamp", "w")
+      if timestamp_file and headers["last-modified"] then
+         local tsfd = io.open(timestamp_file, "w")
          if tsfd then
             tsfd:write(headers["last-modified"])
             tsfd:close()
@@ -669,20 +751,12 @@ function fs_lua.download(url, filename, cache)
    end
    
    local content, err, https_err
-   if util.starts_with(url, "http:") then
-      content, err, https_err = http_request(url, http, cache and filename)
-   elseif util.starts_with(url, "ftp:") then
+   if util.starts_with(url, "ftp:") then
       content, err = ftp.get(url)
-   elseif util.starts_with(url, "https:") then
-      -- skip LuaSec when proxy is enabled since it is not supported
-      if luasec_ok and not cfg.https_proxy then
-         content, err = http_request(url, https, cache and filename)
-      else
-         https_err = true
-      end
    else
-      err = "Unsupported protocol"
+      content, err, https_err = http_download(url, cache and filename..".timestamp")
    end
+
    if https_err then
       if not downloader_warning then
          util.printerr("Warning: falling back to "..cfg.downloader.." - install luasec to get native HTTPS support")
