@@ -161,9 +161,8 @@ function tar.untar(filename, destdir)
       end
       --[[
       for k,v in pairs(header) do
-         util.printout("[\""..tostring(k).."\"] = "..(type(v)=="number" and v or "\""..v:gsub("%z", "\\0").."\""))
+         cfg.log("info", "[\""..tostring(k).."\"] = "..(type(v)=="number" and v or "\""..v:gsub("%z", "\\0").."\""))
       end
-      util.printout()
       --]]
    end
    tar_handle:close()

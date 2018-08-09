@@ -1,4 +1,3 @@
-
 --- Unix implementation of filesystem and platform abstractions.
 local unix = {}
 
@@ -132,7 +131,7 @@ function unix.is_actual_binary(filename)
    local first = file:read(2)
    file:close()
    if not first then
-      util.warning("could not read "..filename)
+      cmd.log("could not read "..filename, true)
       return true
    end
    return first ~= "#!"

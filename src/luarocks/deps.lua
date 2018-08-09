@@ -1,4 +1,3 @@
-
 --- High-level dependency related functions.
 local deps = {}
 
@@ -99,7 +98,35 @@ local function rock_status(name, deps_mode, rocks_provided)
    return installed and installed.." "..installation_type or "not installed"
 end
 
---- Check depenendencies of a package and report any missing ones.
+--- Check dependencies of a package and return any missing ones.
+-- @param name string: package name.
+-- @param version string: package version.
+-- @param dependencies table: array of dependencies.
+-- @param deps_mode string: Which trees to check dependencies for:
+-- @param rocks_provided table: A table of auto-dependencies provided 
+-- returns a table of missing dependencies
+function deps.return_missing_dependencies(name, version, dependencies, deps_mode, rocks_provided)
+   assert(type(name) == "string")
+   assert(type(version) == "string")
+   assert(type(dependencies) == "table")
+   assert(type(deps_mode) == "string")
+   assert(type(rocks_provided) == "table")
+
+   local missing_deps = {}
+
+   for _, dep in ipairs(dependencies) do
+      if not match_dep(dep, nil, deps_mode, rocks_provided) then
+         dep_table = {}
+         dep_table["name"] = tostring(dep)
+         dep_table["status"] = rock_status(dep.name, deps_mode, rocks_provided)
+         --cfg.log("info", ("   %s (%s)"):format(tostring(dep), rock_status(dep.name, deps_mode, rocks_provided)))
+         table.insert(missing_deps, dep_table)
+      end
+   end
+   return missing_deps
+end
+
+--- Check dependencies of a package and report any missing ones.
 -- @param name string: package name.
 -- @param version string: package version.
 -- @param dependencies table: array of dependencies.
@@ -120,11 +147,11 @@ function deps.report_missing_dependencies(name, version, dependencies, deps_mode
    for _, dep in ipairs(dependencies) do
       if not match_dep(dep, nil, deps_mode, rocks_provided) then
          if first_missing_dep then
-            util.printout(("Missing dependencies for %s %s:"):format(name, version))
+            cfg.log("info", ("Missing dependencies for %s %s:"):format(name, version))
             first_missing_dep = false
          end
 
-         util.printout(("   %s (%s)"):format(tostring(dep), rock_status(dep.name, deps_mode, rocks_provided)))
+         cfg.log("info", ("   %s (%s)"):format(tostring(dep), rock_status(dep.name, deps_mode, rocks_provided)))
       end
    end
 end
@@ -147,20 +174,20 @@ function deps.fulfill_dependency(dep, deps_mode, name, version, rocks_provided)
    local install = require("luarocks.cmd.install")
 
    if name and version then
-      util.printout(("%s %s depends on %s (%s)"):format(
+      cfg.log("info", ("%s %s depends on %s (%s)"):format(
          name, version, tostring(dep), rock_status(dep.name, deps_mode, rocks_provided)))
    else
-      util.printout(("Fulfilling dependency on %s (%s)"):format(
+      cfg.log("info", ("Fulfilling dependency on %s (%s)"):format(
          tostring(dep), rock_status(dep.name, deps_mode, rocks_provided)))
    end
    
    if dep.constraints[1] and dep.constraints[1].no_upgrade then
-      util.printerr("This version of "..name.." is designed for use with")
-      util.printerr(tostring(dep)..", but is configured to avoid upgrading it")
-      util.printerr("automatically. Please upgrade "..dep.name.." with")
-      util.printerr("   luarocks install "..dep.name)
-      util.printerr("or choose an older version of "..name.." with")
-      util.printerr("   luarocks search "..name)
+      cfg.log("error", "This version of "..name.." is designed for use with")
+      cfg.log("error", tostring(dep)..", but is configured to avoid upgrading it")
+      cfg.log("error", "automatically. Please upgrade "..dep.name.." with")
+      cfg.log("error", "   luarocks install "..dep.name)
+      cfg.log("error", "or choose an older version of "..name.." with")
+      cfg.log("error", "   luarocks search "..name)
       return nil, "Failed matching dependencies"
    end
 
@@ -168,7 +195,7 @@ function deps.fulfill_dependency(dep, deps_mode, name, version, rocks_provided)
    if not url then
       return nil, "Could not satisfy dependency "..tostring(dep)..": "..search_err
    end
-   util.printout("Installing "..url)
+   cfg.log("info", "Installing "..url)
    local ok, install_err, errcode = install.command({deps_mode = deps_mode, namespace = dep.namespace}, url)
    if not ok then
       return nil, "Failed installing dependency: "..url.." - "..install_err, errcode
@@ -212,7 +239,6 @@ function deps.fulfill_dependencies(rockspec, depskey, deps_mode)
 
    deps.report_missing_dependencies(rockspec.name, rockspec.version, rockspec[depskey], deps_mode, rockspec.rocks_provided)
 
-   util.printout()
    for _, dep in ipairs(rockspec[depskey]) do
       local ok, err = deps.fulfill_dependency(dep, deps_mode, rockspec.name, rockspec.version, rockspec.rocks_provided)
       if not ok then
@@ -459,7 +485,7 @@ function deps.scan_deps(results, manifest, name, version, deps_mode)
    if not dependencies then
       local rockspec, err = fetch.load_local_rockspec(path.rockspec_file(name, version), false)
       if not rockspec then
-         util.printerr("Couldn't load rockspec for "..name.." "..version..": "..err)
+         cfg.log("error", "Couldn't load rockspec for "..name.." "..version..": "..err)
          return
       end
       dependencies = rockspec.dependencies

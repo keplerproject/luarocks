@@ -1,4 +1,3 @@
-
 --- Functions for managing the repository on disk.
 local repos = {}
 
@@ -165,7 +164,7 @@ function repos.run_hook(rockspec, hook_name)
    end
    local hook = hooks[hook_name]
    if hook then
-      util.printout(hook)
+      cfg.log("info", hook)
       if not fs.execute(hook) then
          return nil, "Failed running "..hook_name.." hook."
       end
@@ -300,7 +299,7 @@ function repos.deploy_files(name, version, wrap_bin_scripts, deps_mode)
                backup = backup.."~"
             until not fs.exists(backup) -- Slight race condition here, but shouldn't be a problem.
 
-            util.warning(suffixed_target.." is not tracked by this installation of LuaRocks. Moving it to "..backup)
+            cfg.log("warning", suffixed_target.." is not tracked by this installation of LuaRocks. Moving it to "..backup)
             local move_ok, move_err = fs.move(suffixed_target, backup)
             if not move_ok then return nil, move_err end
          end
@@ -385,7 +384,7 @@ function repos.delete_version(name, version, deps_mode, quick)
          local ok, err, err_type = delete_suffixed(target, suffix)
          if not ok then
             if err_type == "not found" then
-               util.warning(err)
+               cfg.log("warning", err)
             else
                return nil, err
             end

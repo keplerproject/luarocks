@@ -1,4 +1,3 @@
-
 local writer = {}
 
 local cfg = require("luarocks.core.cfg")
@@ -151,7 +150,7 @@ local function filter_by_lua_version(manifest, lua_version, repodir, cache)
    assert(type(manifest) == "table")
    assert(type(repodir) == "string")
    assert((not cache) or type(cache) == "table")
-   
+
    cache = cache or {}
    lua_version = vers.parse_version(lua_version)
    for pkg, versions in pairs(manifest.repository) do
@@ -175,7 +174,7 @@ local function filter_by_lua_version(manifest, lua_version, repodir, cache)
                      end
                   end
                else
-                  util.printerr("Error loading rockspec for "..pkg.." "..version..": "..err)
+                  cfg.log("error", "Error loading rockspec for "..pkg.." "..version..": "..err)
                end
             end
          end
@@ -370,7 +369,7 @@ function writer.add_to_manifest(name, version, repo, deps_mode)
 
    local manifest, err = manif.load_manifest(rocks_dir)
    if not manifest then
-      util.printerr("No existing manifest. Attempting to rebuild...")
+      cfg.log("error", "No existing manifest. Attempting to rebuild...")
       -- Manifest built by `writer.make_manifest` should already
       -- include information about given name and version,
       -- no need to update it.
@@ -407,7 +406,7 @@ function writer.remove_from_manifest(name, version, repo, deps_mode)
 
    local manifest, err = manif.load_manifest(rocks_dir)
    if not manifest then
-      util.printerr("No existing manifest. Attempting to rebuild...")
+      cfg.log("error", "No existing manifest. Attempting to rebuild...")
       -- Manifest built by `writer.make_manifest` should already
       -- include up-to-date information, no need to update it.
       return writer.make_manifest(rocks_dir, deps_mode)
