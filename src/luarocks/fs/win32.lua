@@ -363,4 +363,13 @@ function win32.system_cache_dir()
    return dir.path(fs.system_temp_dir(), "cache")
 end
 
+function win32.execute_env(env, command, ...)
+   assert(type(command) == "string")
+   local envstr = {}
+   for var, val in pairs(env) do
+      table.insert(envstr, fs.export_cmd(var, val))
+   end
+   return fs.execute(table.concat(envstr, " && ") .. " && " .. command, ...)
+end
+
 return win32

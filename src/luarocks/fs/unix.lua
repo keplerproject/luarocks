@@ -233,4 +233,13 @@ function unix.system_cache_dir()
    return dir.path(fs.system_temp_dir(), "cache")
 end
 
+function unix.execute_env(env, command, ...)
+   assert(type(command) == "string")
+   local envstr = {}
+   for var, val in pairs(env) do
+      table.insert(envstr, fs.export_cmd(var, val))
+   end
+   return fs.execute(table.concat(envstr, "\n") .. "\n" .. command, ...)
+end
+
 return unix

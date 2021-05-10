@@ -94,15 +94,6 @@ function fs_lua.execute_quiet(command, ...)
    end
 end
 
-function fs.execute_env(env, command, ...)
-   assert(type(command) == "string")
-   local envstr = {}
-   for var, val in pairs(env) do
-      table.insert(envstr, fs.export_cmd(var, val))
-   end
-   return fs.execute_string(table.concat(envstr, "\n") .. "\n" .. quote_args(command, ...))
-end
-
 local tool_available_cache = {}
 
 function fs_lua.set_tool_available(tool_name, value)
