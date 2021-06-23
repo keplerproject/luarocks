@@ -37,6 +37,7 @@ local platform_order = {
    "netbsd",
    "openbsd",
    "freebsd",
+   "dragonfly",
    "linux",
    "macosx",
    "cygwin",
@@ -144,6 +145,7 @@ end
 
 local platform_sets = {
    freebsd = { unix = true, bsd = true, freebsd = true },
+   dragonfly = { unix = true, bsd = true, dragonfly = true },
    openbsd = { unix = true, bsd = true, openbsd = true },
    solaris = { unix = true, solaris = true },
    windows = { windows = true, win32 = true },
@@ -478,8 +480,17 @@ local function make_defaults(lua_version, target_cpu, platforms, home)
       defaults.variables.LIBFLAG = (os.getenv("LDFLAGS") or "").." -shared"
    end
 
+   if platforms.dragonfly then
+      defaults.arch = "dragonfly-"..target_cpu
+      defaults.variables.CC = os.getenv("CC") or "cc"
+      defaults.variables.CFLAGS = os.getenv("CFLAGS") or defaults.variables.CFLAGS
+      defaults.variables.LD = defaults.variables.CC
+      defaults.variables.LIBFLAG = (os.getenv("LDFLAGS") or "").." -shared"
+   end
+
    if platforms.openbsd then
       defaults.arch = "openbsd-"..target_cpu
+      defaults.gcc_rpath = false
    end
 
    if platforms.netbsd then
