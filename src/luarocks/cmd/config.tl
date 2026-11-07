@@ -66,7 +66,7 @@ Query information about the LuaRocks configuration.
 
    cmd:option("--scope", "The scope indicates which config file should be rewritten.\n"..
       '* Using a wrapper created with `luarocks init`, the default is "project".\n'..
-      '* Using --local (or when `local_by_default` is `true`), the default is "user".\n'..
+      '* Using --local (or when the local tree is the default), the default is "user".\n'..
       '* Otherwise, the default is "system".')
       :choices({"system", "user", "project"})
    cmd:flag("--unset", "Delete the key from the configuration file.")
@@ -229,7 +229,7 @@ local function get_scope(args: Args): string
    return args.scope
           or (args["local"] and "user")
           or (args.project_tree and "project")
-          or (cfg.local_by_default and "user")
+          or (fs.is_local_by_default() and "user")
           or (fs.is_writable(cfg.config_files["system"].file) and "system")
           or "user"
 end

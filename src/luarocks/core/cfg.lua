@@ -180,7 +180,7 @@ local function make_defaults(lua_version, target_cpu, platforms, home)
    -- Configure defaults:
    local defaults = {
 
-      local_by_default = false,
+      local_by_default = "auto",
       accept_unknown_fields = false,
       fs_use_modules = true,
       hooks_enabled = true,

@@ -879,6 +879,7 @@ local function create_configs()
          "%{testing_server}"
       }
       local_cache = "%{testing_cache}"
+      local_by_default = false
       upload_server = "testing"
       upload_user = "%{user}"
       upload_servers = {

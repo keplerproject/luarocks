@@ -1137,6 +1137,22 @@ end
 -- Other functions
 ---------------------------------------------------------------------
 
+--- Whether the user tree should be used when no tree is given on the
+-- command line. An explicit boolean in the configuration wins; "auto"
+-- (the default) resolves to the local tree unless running with
+-- superuser privileges.
+-- @return boolean
+function fs_lua.is_local_by_default()
+   local value = cfg.local_by_default
+   if value == true or value == false then
+      return value
+   end
+   if package.config:sub(1, 1) == "\\" then
+      return false
+   end
+   return not fs.is_superuser()
+end
+
 if not fs_lua.make_temp_dir then
 
 function fs_lua.make_temp_dir(name_pattern)
@@ -1252,7 +1268,7 @@ function fs_lua.check_command_permissions(args)
       args._command_permissions_checked = true
       return true
    else
-      if args["local"] or cfg.local_by_default then
+      if args["local"] or fs.is_local_by_default() then
          err = err .. "\n\nPlease check your permissions.\n"
       else
          local local_tree = get_local_tree()

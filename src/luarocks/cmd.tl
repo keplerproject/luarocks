@@ -134,10 +134,14 @@ do
          table.insert(cfg.rocks_trees, 1, { name = "project", root = project_tree } )
          manif.load_rocks_tree_manifests()
          path.use_tree(project_tree)
-      elseif cfg.local_by_default then
+      elseif fs.is_local_by_default() then
          local ok, err = set_named_tree(args, "user")
-         if not ok then
+         if err then
             return nil, err
+         elseif not ok then
+            -- the configuration defines no user tree to switch to
+            local trees = cfg.rocks_trees
+            path.use_tree(trees[#trees])
          end
       else
          local trees = cfg.rocks_trees
@@ -508,7 +512,7 @@ Enabling completion for Fish:
       :hidden_name("--to")
    parser:flag("--local", "Use the tree in the user's home directory.\n"..
       "To enable it, see '"..program.." help path'.")
-   parser:flag("--global", "Use the system tree when `local_by_default` is `true`.")
+   parser:flag("--global", "Use the system tree when the local tree would be used by default.")
    parser:flag("--no-project", "Do not use project tree even if running from a project folder.")
    parser:flag("--force-lock", "Attempt to overwrite the lock for commands " ..
       "that require exclusive access, such as 'install'")
