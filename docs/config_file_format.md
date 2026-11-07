@@ -220,7 +220,11 @@ To test this, add a line `dump_env()` to your config file and execute
   enabled, adding the deploy.wrap_bin_scripts option to the rockspec format,
   which acts like the wrap_bin_scripts option above, in a rock by rock basis.
 
-* `local_by_default` (boolean) - If `true`, the tree in the user's home
-  directory is used as if the command line option `--local` had been given
+* `local_by_default` (boolean or `"auto"`) - If `true`, the tree in the user's home
+  directory is used as if the command line option `--local` had been given.
+  If `false`, the system tree is used. The default is `"auto"`, which means
+  the value was not configured: on Unix it behaves like `true` unless running
+  with superuser privileges, and on Windows it behaves like `false`. Pass
+  `--global` to force the system tree, or `--local` to force the user tree.
 
 

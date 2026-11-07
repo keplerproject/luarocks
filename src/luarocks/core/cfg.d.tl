@@ -93,7 +93,8 @@ local record cfg
    makefile: string
    make: string
    -- cmd
-   local_by_default: boolean
+   -- "auto" means unset, to be resolved by fs.is_local_by_default()
+   local_by_default: boolean | string
    fs_use_modules: boolean
    is_binary: boolean
    program_version: string

@@ -72,6 +72,7 @@ local record fs
    zip: function(string, ...:string): boolean, string
    -- cmd
    is_superuser: function(): boolean
+   is_local_by_default: function(): boolean
    modules: function(string): {string}
    system_cache_dir: function(): string
    check_command_permissions: function(Args): boolean, string

@@ -23,7 +23,7 @@ Variables from the "variables" table of the [configuration file](config_file_for
   - **order**: Consider only trees starting from the "current" one in the order, where the "current" is either:
     - the one at the bottom of the `rocks_trees` list,
     - or one explicitly given with `--tree`,
-    - or the "home" tree if `--local` was given or `local_by_default=true` is configured (usually at the top of the list).
+    - or the "home" tree if `--local` was given, or the local tree is used by default (which is the case for an unprivileged user on Unix unless `local_by_default` is set to `false`) (usually at the top of the list).
 - `--verbose`: Display verbose output of commands executed.
 - `--timeout`: Timeout on network operations, in seconds. `0` means no timeout (wait forever). Default is `30`.
 

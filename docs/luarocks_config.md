@@ -52,8 +52,9 @@ Example: `luarocks config`
                    Accepted values are "system", "user" or "project".
                    * Using a wrapper created with `luarocks init`,
                      the default is "project".
-                   * Using --local (or when `local_by_default` is `true`),
-                     the default is "user".
+                   * Using --local (or when the local tree is the default,
+                     which `local_by_default` left as "auto" gives for an
+                     unprivileged user on Unix), the default is "user".
                    * Otherwise, the default is "system".
 
 --json           Output as JSON

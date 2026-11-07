@@ -57,6 +57,7 @@ end
 do
    local skip_verbose_wrap = {
       ["current_dir"] = true,
+      ["is_local_by_default"] = true,
    }
 
    local function load_fns(module_name, inits)

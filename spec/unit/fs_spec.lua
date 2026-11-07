@@ -1592,4 +1592,50 @@ describe("luarocks.fs #unit", function()
       end)
    end)
 
+   describe("fs.is_local_by_default", function()
+      local saved_value
+      local saved_is_superuser
+      local saved_package_config
+
+      before_each(function()
+         saved_value = cfg.local_by_default
+         saved_is_superuser = fs.is_superuser
+         saved_package_config = package.config
+      end)
+
+      after_each(function()
+         cfg.local_by_default = saved_value
+         fs.is_superuser = saved_is_superuser
+         package.config = saved_package_config
+      end)
+
+      it("honours an explicitly configured value", function()
+         fs.is_superuser = function() return false end
+         cfg.local_by_default = true
+         assert.is_true(fs.is_local_by_default())
+         cfg.local_by_default = false
+         assert.is_false(fs.is_local_by_default())
+      end)
+
+      it("resolves auto to the system tree for the superuser", function()
+         fs.is_superuser = function() return true end
+         cfg.local_by_default = "auto"
+         assert.is_false(fs.is_local_by_default())
+      end)
+
+      it("resolves auto to the user tree for an unprivileged user", function()
+         fs.is_superuser = function() return false end
+         package.config = "/?/;"
+         cfg.local_by_default = "auto"
+         assert.is_true(fs.is_local_by_default())
+      end)
+
+      it("resolves auto to the system tree on Windows", function()
+         fs.is_superuser = function() return false end
+         package.config = "\\?/;"
+         cfg.local_by_default = "auto"
+         assert.is_false(fs.is_local_by_default())
+      end)
+   end)
+
 end)
