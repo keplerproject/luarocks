@@ -125,7 +125,7 @@ function pack.pack_installed_rock(query, tree)
 
    ok, err = fs.change_dir(temp_dir)
    if not ok then return nil, err end
-   if not is_binary and not repos.has_binaries(name, version) then
+   if not is_binary and not repos.has_binaries(name, version, repo) then
       rock_file = rock_file:gsub("%." .. cfg.arch:gsub("%-", "%%-") .. "%.", ".all.")
    end
    fs.delete(rock_file)

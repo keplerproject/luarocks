@@ -126,3 +126,32 @@ RUN: luarocks build a_rock --keep --server=%{fixtures_dir}/a_repo
 RUN: luarocks pack a_user/a_rock
 
 EXISTS: a_rock-2.0-1.all.rock
+
+
+================================================================================
+TEST: packs rock installed in a different tree
+
+FILE: binrock-1.0-1.rockspec
+--------------------------------------------------------------------------------
+rockspec_format = "3.0"
+package = "binrock"
+version = "1.0-1"
+source = {
+   url = "file://%{url(%{tmpdir})}/rock.lua"
+}
+build = {
+   type = "builtin",
+   modules = { rock = "rock.lua" },
+   install = { bin = { binscript = "rock.lua" } },
+}
+--------------------------------------------------------------------------------
+
+FILE: rock.lua
+--------------------------------------------------------------------------------
+return "hello"
+--------------------------------------------------------------------------------
+
+RUN: luarocks build binrock-1.0-1.rockspec --tree=user
+RUN: luarocks pack binrock
+
+EXISTS: binrock-1.0-1.all.rock

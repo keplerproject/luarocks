@@ -149,20 +149,26 @@ end
 --- Check if a rock contains binary executables.
 -- @param name string: name of an installed rock
 -- @param version string: version of an installed rock
+-- @param repo Tree|string|nil: tree the rock is installed in,
+-- defaults to the active tree.
 -- @return boolean: returns true if rock contains platform-specific
 -- binary executables, or false if it is a pure-Lua rock.
-function repos.has_binaries(name: string, version: string): boolean
+function repos.has_binaries(name: string, version: string, repo: (string | Tree)?): boolean
    assert(not name:match("/"))
 
-   local entries = manif.load_rock_manifest(name, version)
+   local entries = manif.load_rock_manifest(name, version, repo)
    if not entries then
       return false
    end
    local bin = entries["bin"]
    if bin is {string:Entry} then
+      local deploy_dir = repo and path.deploy_bin_dir(repo) or cfg.deploy_bin_dir
       for bin_name, _md5 in pairs(bin) do
-         -- TODO verify that it is the same file. If it isn't, find the actual command.
-         if fs.is_actual_binary(dir.path(cfg.deploy_bin_dir, bin_name)) then
+         local deployed = dir.path(deploy_dir, bin_name)
+         if not fs.exists(deployed) then
+            deployed = path.versioned_name(deployed, deploy_dir, name, version)
+         end
+         if fs.exists(deployed) and fs.is_actual_binary(deployed) then
             return true
          end
       end
