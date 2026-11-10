@@ -104,6 +104,21 @@ local valid_patch2 =
 +Deeper and more profound,
 +The door of all subtleties!]]
 
+local valid_patch3 =
+[[--- one.txt
++++ one.txt
+@@ -1,2 +1,2 @@
+ This is the first file.
+-It has an old line.
++It has a new line.
+--- two.txt
++++ two.txt
+@@ -1,2 +1,2 @@
+ This is the second file.
+-It has an old line.
++It has a new line.
+]]
+
 local invalid_patch1 =
 [[--- lao	2002-02-21 23:30:39.942229878 -0800
 +++ tzu	2002-02-21 23:30:50.442260588 -0800
@@ -171,6 +186,23 @@ local invalid_patch3 =
 ? ...
 +The door of all subtleties!]]
 
+local invalid_patch4 =
+[[--- one.txt
++++ one.txt
+@@ -1,2 +1,2 @@
+ This is the first file.
+-It has an old line.
++It has a new line.
+--- two.txt
++++ two.txt
+diff -u three.txt three.txt
+--- three.txt
++++ three.txt
+@@ -1,2 +1,2 @@
+ This is the third file.
+-It has an old line.
++It has a new line.]]
+
 describe("Luarocks patch test #unit", function()
    local runner
 
@@ -209,6 +241,19 @@ describe("Luarocks patch test #unit", function()
          t, result = patch.read_patch("test.patch")
          assert.falsy(result)
          assert.truthy(t)
+
+         write_file("test.patch", invalid_patch4, finally)
+         t, result = patch.read_patch("test.patch")
+         assert.falsy(result)
+         assert.truthy(t)
+      end)
+
+      it("reads a patch with multiple files", function()
+         write_file("test.patch", valid_patch3, finally)
+         local t, result = patch.read_patch("test.patch")
+         assert.truthy(result)
+         assert.same({ "one.txt", "two.txt" }, t.source)
+         assert.same({ "one.txt", "two.txt" }, t.target)
       end)
    end)
 
@@ -239,6 +284,22 @@ describe("Luarocks patch test #unit", function()
          local p = patch.read_patch("test.patch")
          local result = patch.apply_patch(p, nil, true)
          assert.truthy(result)
+      end)
+
+      it("applies a patch with multiple files", function()
+         write_file("one.txt", "This is the first file.\nIt has an old line.\n", finally)
+         write_file("two.txt", "This is the second file.\nIt has an old line.\n", finally)
+         write_file("test.patch", valid_patch3, finally)
+         local p = patch.read_patch("test.patch")
+         local result = patch.apply_patch(p)
+         assert.truthy(result)
+
+         local fd = assert(io.open("one.txt", "r"))
+         assert.same("This is the first file.\nIt has a new line.\n", fd:read("*a"))
+         fd:close()
+         fd = assert(io.open("two.txt", "r"))
+         assert.same("This is the second file.\nIt has a new line.\n", fd:read("*a"))
+         fd:close()
       end)
 
       it("fails if the patch file is invalid", function()
