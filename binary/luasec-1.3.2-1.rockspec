@@ -54,7 +54,7 @@ build = {
                   "$(OPENSSL_LIBDIR)"
                },
                libraries = {
-                  "ssl", "crypto"
+                  "ssl", "crypto", "zstd", "jitterentropy"
                },
                sources = {
                   "src/options.c", "src/config.c", "src/ec.c",

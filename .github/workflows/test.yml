@@ -127,7 +127,7 @@ jobs:
         luaVersion: "5.4"
 
     - name: 'Setup Ubuntu deps'
-      run: sudo apt-get install libbz2-dev
+      run: sudo apt-get install libbz2-dev libzstd-dev libjitterentropy3-dev
 
     - name: Binary Build Smoke Test
       run: |
